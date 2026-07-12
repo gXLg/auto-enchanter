@@ -24,9 +24,9 @@
 		"client.auto-enchanter.mixins.json"
 	],
 	"depends": {
-		"fabricloader": "*",
-		"minecraft": ">=1.20.5 <=1.21.11",
-		"java": ">=21",
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
 		"fabric-api": "*"
 	}
 }

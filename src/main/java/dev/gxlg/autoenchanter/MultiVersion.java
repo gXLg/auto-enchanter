@@ -1,29 +1,17 @@
 package dev.gxlg.autoenchanter;
 
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.core.Holder;
+import net.minecraft.world.item.enchantment.Enchantment;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-@SuppressWarnings("unused")
 public class MultiVersion {
-    private static final Map<Set<RegistryEntry<Enchantment>>, Boolean> cacheCombine = new HashMap<>();
+	private static final Map<Set<Holder<Enchantment>>, Boolean> cacheCombine = new HashMap<>();
 
-    public static boolean canCombine(RegistryEntry<Enchantment> a, RegistryEntry<Enchantment> b) {
-        Set<RegistryEntry<Enchantment>> pair = Set.of(a, b);
-        if (cacheCombine.containsKey(pair)) return cacheCombine.get(pair);
-
-        Class<?> re = RegistryEntry.class;
-        boolean res;
-        if (Reflection.version(">= 1.21")) {
-            res = (Boolean) Reflection.wrap("[net.minecraft.class_1887/net.minecraft.enchantment.Enchantment]:null method_60033/canBeCombined re:a re:b");
-        } else {
-            Class<?> e = Enchantment.class;
-            res = (Boolean) Reflection.wrap("e:a.value() method_8188/canCombine e:b.value()");
-        }
-        cacheCombine.put(pair, res);
-        return res;
-    }
+	public static boolean canCombine(Holder<Enchantment> a, Holder<Enchantment> b) {
+		Set<Holder<Enchantment>> pair = Set.of(a, b);
+		return cacheCombine.computeIfAbsent(pair, ignored -> Enchantment.areCompatible(a, b));
+	}
 }
