@@ -1,45 +1,44 @@
 package dev.gxlg.autoenchanter.mixin;
 
 import dev.gxlg.autoenchanter.Worker;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ingame.AnvilScreen;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Items;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AnvilScreen;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.Items;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@SuppressWarnings("UnresolvedMixinReference")
-@Mixin(ClientPlayerInteractionManager.class)
+@Mixin(MultiPlayerGameMode.class)
 public class ManagerMixin {
 
-    @Shadow
-    private MinecraftClient client;
+	@Shadow
+	private Minecraft minecraft;
 
-    @Inject(at = @At("HEAD"), method = "clickSlot", cancellable = true)
-    private void clickSlot(int syncId, int slotId, int button, SlotActionType actionType, PlayerEntity player, CallbackInfo info) {
-        if (Worker.getState() == Worker.State.SELECT) {
-            if (slotId > 2 && (
-                    Worker.getSelected().size() < 1 ||
-                    Worker.getSelected().contains(slotId) ||
-                    player.currentScreenHandler.getSlot(slotId).getStack().getItem() == Items.ENCHANTED_BOOK ||
-                    player.currentScreenHandler.getSlot(slotId).getStack().getItem() == player.currentScreenHandler.getSlot(Worker.getSelected().get(0)).getStack().getItem()
-            )) {
-                Worker.toggleSelection(slotId);
-            }
-            info.cancel();
-        }
-    }
+	@Inject(at = @At("HEAD"), method = "handleContainerInput", cancellable = true)
+	private void clickSlot(int syncId, int slotId, int button, ContainerInput actionType, Player player, CallbackInfo info) {
+		if (Worker.getState() == Worker.State.SELECT) {
+			if (slotId > 2 && (
+					Worker.getSelected().isEmpty() ||
+					Worker.getSelected().contains(slotId) ||
+					player.containerMenu.getSlot(slotId).getItem().getItem() == Items.ENCHANTED_BOOK ||
+					player.containerMenu.getSlot(slotId).getItem().getItem() == player.containerMenu.getSlot(Worker.getSelected().getFirst()).getItem().getItem()
+			)) {
+				Worker.toggleSelection(slotId);
+			}
+			info.cancel();
+		}
+	}
 
-    @Inject(at = @At("HEAD"), method = "tick")
-    private void tick(CallbackInfo info) {
-        if (client.currentScreen == null || !(client.currentScreen instanceof AnvilScreen)) {
-            Worker.closeScreen();
-        }
-        Worker.tick();
-    }
+	@Inject(at = @At("HEAD"), method = "tick")
+	private void tick(CallbackInfo info) {
+		if (!(minecraft.gui.screen() instanceof AnvilScreen)) {
+			Worker.closeScreen();
+		}
+		Worker.tick();
+	}
 }

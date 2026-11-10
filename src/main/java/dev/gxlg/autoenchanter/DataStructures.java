@@ -1,18 +1,18 @@
 package dev.gxlg.autoenchanter;
 
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.entry.RegistryEntry;
-
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public class DataStructures {
     public record IterItem<S>(long index, long total, S current) {
@@ -52,12 +52,12 @@ public class DataStructures {
             return new FilledShape(left.fillInternal(list), right.fillInternal(list));
         }
 
-        public Stream<List<Enchant>> possibleFills(List<Enchant> alreadyFilled, Map<Integer, List<Enchant>> map, RegistryEntry<Enchantment> current, Enchant main) {
+        public Stream<List<Enchant>> possibleFills(List<Enchant> alreadyFilled, Map<Integer, List<Enchant>> map, Holder<Enchantment> current, Enchant main) {
             List<Enchant> allItems = map.values().stream().flatMap(List::stream).toList();
             return possibleFillsInternal(alreadyFilled, MergeTree.from(map), 0, allItems, current, main);
         }
 
-        private Stream<List<Enchant>> possibleFillsInternal(List<Enchant> alreadyFilled, MergeTree tree, int indexOffset, List<Enchant> items, RegistryEntry<Enchantment> currentEnchantment, Enchant main) {
+        private Stream<List<Enchant>> possibleFillsInternal(List<Enchant> alreadyFilled, MergeTree tree, int indexOffset, List<Enchant> items, Holder<Enchantment> currentEnchantment, Enchant main) {
             if (tree.value() == 0) {
                 return Stream.of(alreadyFilled.subList(indexOffset, indexOffset + leafs()));
             }
@@ -89,19 +89,19 @@ public class DataStructures {
             return splits.stream().flatMap(split -> left.possibleFillsInternal(alreadyFilled, split.getKey(), indexOffset, items, currentEnchantment, main).flatMap(ll -> right.possibleFillsInternal(alreadyFilled, split.getValue(), indexOffset + left.leafs(), items.stream().filter(i -> ll.stream().noneMatch(j -> i == j)).toList(), currentEnchantment, main).map(rr -> Stream.concat(ll.stream(), rr.stream()).toList())));
         }
 
-        public void draw(DrawContext context, TextRenderer textRenderer, int x, int y, int w, int h) {
+        public void draw(GuiGraphicsExtractor context, Font textRenderer, int x, int y, int w, int h) {
             draw(context, textRenderer, x, y, w, h, 0, 0);
         }
 
         @SuppressWarnings("unused")
-        private void draw(DrawContext context, TextRenderer textRenderer, int x, int y, int w, int h, int depth, int cost) {
+        private void draw(GuiGraphicsExtractor context, Font textRenderer, int x, int y, int w, int h, int depth, int cost) {
             int color = 0xF2DCA0 + (0x6D12A6 - 0xF2DCA0) * depth / 6;
             int base = 0xFF000000;
             context.fill(x, y, x + w, y + h, base + color / 2);
             context.fill(x + 1, y + 1, x + w - 1, y + h - 1, base + color);
 
             if (isLeaf()) {
-                Object ignored = Reflection.wrap("@context method_51433/drawText @textRenderer @String.valueOf(cost) int:x+3 int:y+3 int:0xFF000000 boolean:false");
+                context.text(textRenderer, String.valueOf(cost), x + 3, y + 3, 0xFF000000, false);
                 return;
             }
 
@@ -149,34 +149,21 @@ public class DataStructures {
         }
     }
 
-    @SuppressWarnings({"unused", "DataFlowIssue"})
-    public record Enchant(Map<RegistryEntry<Enchantment>, EMap> enchantments, int anvilUse, Item item) {
+    public record Enchant(Map<Holder<Enchantment>, EMap> enchantments, int anvilUse, Item item) {
         public static Enchant from(ItemStack stack) {
-            Integer r;
-            Object rc = Reflection.wrap("[net.minecraft.class_9334/net.minecraft.component.DataComponentTypes]:null field_49639/REPAIR_COST");
-            if (Reflection.version(">= 1.21.5")) {
-                r = (Integer) Reflection.wrap("[net.minecraft.class_9323/net.minecraft.component.ComponentMap]:stack.getComponents() method_58694/get [net.minecraft.class_9331/net.minecraft.component.ComponentType]:rc");
-            } else if (Reflection.version(">= 1.21")) {
-                r = (Integer) Reflection.wrap("[net.minecraft.class_9323/net.minecraft.component.ComponentMap]:stack.getComponents() method_57829/get [net.minecraft.class_9331/net.minecraft.component.ComponentType]:rc");
-            } else {
-                r = (Integer) Reflection.wrap("[net.minecraft.class_9323/net.minecraft.component.ComponentMap]:stack.getComponents() method_57829/get [net.minecraft.class_9331/net.minecraft.component.DataComponentType]:rc");
-            }
-            int repair = Optional.ofNullable(r).orElse(0);
+            int repair = stack.getOrDefault(DataComponents.REPAIR_COST, 0);
             int anvilUse = Integer.bitCount(repair);
 
-            ItemEnchantmentsComponent component = EnchantmentHelper.getEnchantments(stack);
-            Map<RegistryEntry<Enchantment>, EMap> enchantments = component.getEnchantments().stream().collect(Collectors.toMap(i -> i, i -> {
-                int lvl = (Integer) (Reflection.version(">= 1.21") ?
-                        Reflection.wrap("@component method_57536/getLevel RegistryEntry:i") :
-                        Reflection.wrap("@component method_57536/getLevel Enchantment:i.value()"));
-                return EMap.from(lvl, i.value().getAnvilCost());
-            }));
+            ItemEnchantments component = EnchantmentHelper.getEnchantmentsForCrafting(stack);
+            Map<Holder<Enchantment>, EMap> enchantments = component.keySet().stream().collect(Collectors.toMap(
+                    holder -> holder,
+                    holder -> EMap.from(component.getLevel(holder), holder.value().getAnvilCost())
+            ));
             return new Enchant(enchantments, anvilUse, stack.getItem());
         }
-
     }
 
-    public record EnchantedItem(Map<RegistryEntry<Enchantment>, EMap> enchantments, int anvilUse, int cost, Item item) {
+    public record EnchantedItem(Map<Holder<Enchantment>, EMap> enchantments, int anvilUse, int cost, Item item) {
         public static EnchantedItem INVALID = new EnchantedItem(Collections.emptyMap(), -1, -1, null);
 
         public boolean matches(ItemStack stack) {
@@ -248,16 +235,16 @@ public class DataStructures {
             if (l.item() == Items.ENCHANTED_BOOK && r.item() != Items.ENCHANTED_BOOK)
                 return EnchantedItem.INVALID; // can't use an item as a sacrifice if the target is a book
 
-            Map<RegistryEntry<Enchantment>, EMap> enchantments = new HashMap<>();
+            Map<Holder<Enchantment>, EMap> enchantments = new HashMap<>();
             int c = 0;
             boolean anyValid = false;
-            for (Map.Entry<RegistryEntry<Enchantment>, EMap> e : r.enchantments().entrySet()) {
-                RegistryEntry<Enchantment> sacrifice = e.getKey();
+            for (Map.Entry<Holder<Enchantment>, EMap> e : r.enchantments().entrySet()) {
+                Holder<Enchantment> sacrifice = e.getKey();
                 EMap sacrificeData = e.getValue();
 
                 boolean pair = false;
-                for (Map.Entry<RegistryEntry<Enchantment>, EMap> d : l.enchantments().entrySet()) {
-                    RegistryEntry<Enchantment> target = d.getKey();
+                for (Map.Entry<Holder<Enchantment>, EMap> d : l.enchantments().entrySet()) {
+                    Holder<Enchantment> target = d.getKey();
                     EMap targetData = d.getValue();
 
                     if (target == sacrifice) {
@@ -283,7 +270,7 @@ public class DataStructures {
                         c += 1;
                     }
                 }
-                if (!pair && (sacrifice.value().isAcceptableItem(l.item().getDefaultStack()) || l.item() == Items.ENCHANTED_BOOK)) {
+                if (!pair && (sacrifice.value().canEnchant(l.item().getDefaultInstance()) || l.item() == Items.ENCHANTED_BOOK)) {
                     anyValid = true;
                     enchantments.put(sacrifice, sacrificeData);
                     c += sacrificeData.cost(r.item()) * sacrificeData.lvl();
@@ -291,7 +278,7 @@ public class DataStructures {
             }
             if (!anyValid) return EnchantedItem.INVALID; // no enchantments were applied
 
-            for (Map.Entry<RegistryEntry<Enchantment>, EMap> d : l.enchantments().entrySet()) {
+            for (Map.Entry<Holder<Enchantment>, EMap> d : l.enchantments().entrySet()) {
                 if (!enchantments.containsKey(d.getKey())) enchantments.put(d.getKey(), d.getValue());
             }
 

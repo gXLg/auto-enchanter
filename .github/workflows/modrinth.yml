@@ -12,14 +12,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4.1.1
-        with:
-          submodules: true
 
       - name: Setup Java
         uses: actions/setup-java@v4.0.0
         with:
           distribution: "temurin"
-          java-version: 21
+          java-version: 25
 
       - name: Mark Executable
         run: chmod +x ./gradlew

@@ -7,8 +7,7 @@ on:
       - "src/**"
       - "gradle.properties"
       - "build.gradle"
-      - "MultiVersion"
-      - ".gitmodules"
+      - "gradle/**"
       - ".github/workflows/build.yml"
     tags-ignore: [ "**" ]
 
@@ -23,18 +22,12 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
-          submodules: true
 
       - name: Setup Java
         uses: actions/setup-java@v4.0.0
         with:
           distribution: "temurin"
-          java-version: 21
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24.12.0"
+          java-version: 25
 
       - name: Mark executable
         run: chmod +x ./gradlew

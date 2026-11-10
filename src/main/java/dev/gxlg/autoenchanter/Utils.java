@@ -1,8 +1,5 @@
 package dev.gxlg.autoenchanter;
 
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.registry.entry.RegistryEntry;
-
 import java.math.BigInteger;
 import java.util.*;
 import java.util.concurrent.*;
@@ -11,8 +8,17 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import net.minecraft.core.Holder;
+import net.minecraft.world.item.enchantment.Enchantment;
 
 import static dev.gxlg.autoenchanter.DataStructures.*;
+
+import dev.gxlg.autoenchanter.DataStructures.Enchant;
+import dev.gxlg.autoenchanter.DataStructures.EnchantedItem;
+import dev.gxlg.autoenchanter.DataStructures.FilledShape;
+import dev.gxlg.autoenchanter.DataStructures.IterItem;
+import dev.gxlg.autoenchanter.DataStructures.Leaf;
+import dev.gxlg.autoenchanter.DataStructures.Shape;
 
 public class Utils {
     private static BigInteger countWithDepth(int amount, int depth, int maxDepth, Map<Long, BigInteger> memo) {
@@ -60,10 +66,10 @@ public class Utils {
         });
     }
 
-    private static Stream<List<Enchant>> fills(Shape tree, List<Enchant> filled, Map<RegistryEntry<Enchantment>, Map<Integer, List<Enchant>>> map, Enchant main, Set<RegistryEntry<Enchantment>> ignoredEncs) {
+    private static Stream<List<Enchant>> fills(Shape tree, List<Enchant> filled, Map<Holder<Enchantment>, Map<Integer, List<Enchant>>> map, Enchant main, Set<Holder<Enchantment>> ignoredEncs) {
         if (map.size() == 0) return Stream.of(filled);
-        Map<RegistryEntry<Enchantment>, Map<Integer, List<Enchant>>> m = new HashMap<>(map);
-        RegistryEntry<Enchantment> first;
+        Map<Holder<Enchantment>, Map<Integer, List<Enchant>>> m = new HashMap<>(map);
+        Holder<Enchantment> first;
         do {
             first = m.keySet().stream().findFirst().orElseThrow();
             m.remove(first);
@@ -76,17 +82,17 @@ public class Utils {
         private final AtomicReference<Map.Entry<FilledShape, Integer>> bestShape = new AtomicReference<>();
         private final int amount;
         private final Enchant mainItem;
-        private final Map<RegistryEntry<Enchantment>, Map<Integer, List<Enchant>>> trueMap;
+        private final Map<Holder<Enchantment>, Map<Integer, List<Enchant>>> trueMap;
         private final List<Enchant> collection;
         private final ExecutorService pool;
         private final int threads;
         private final BlockingQueue<IterItem<Shape>> queue;
-        private final Set<RegistryEntry<Enchantment>> ignoredEncs;
-        private final Map<RegistryEntry<Enchantment>, Integer> maxMap;
+        private final Set<Holder<Enchantment>> ignoredEncs;
+        private final Map<Holder<Enchantment>, Integer> maxMap;
         private volatile boolean submitting = true;
         private final AtomicInteger finished = new AtomicInteger(0);
 
-        public ShapePool(int amount, List<Enchant> collection, Map<RegistryEntry<Enchantment>, Map<Integer, List<Enchant>>> trueMap, Enchant mainItem, Set<RegistryEntry<Enchantment>> ignoredEncs, Map<RegistryEntry<Enchantment>, Integer> maxMap) {
+        public ShapePool(int amount, List<Enchant> collection, Map<Holder<Enchantment>, Map<Integer, List<Enchant>>> trueMap, Enchant mainItem, Set<Holder<Enchantment>> ignoredEncs, Map<Holder<Enchantment>, Integer> maxMap) {
             this.amount = amount;
             this.collection = collection;
             this.trueMap = trueMap;
